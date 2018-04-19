@@ -130,7 +130,7 @@ def APT_GramSchmidt(S, m=5):
 	3) Select 'x2' best correlated with other x in N('x1') as second basis
 	Repeat until number of basis is m
 	"""
-	print 'Gram-Schmidt...'
+	# print 'Gram-Schmidt...'
 	p, n = S.shape
 
 	idx = [] # features already selected
@@ -160,19 +160,21 @@ def APT_GramSchmidt(S, m=5):
 		# print S.shape
 		# print idx
 		A = S[:, idx]
+		Wa = np.dot(np.linalg.pinv(A), S)
 		
-		# FEAT_PROJ = np.dot(A, np.transpose(A))
-		FEAT_PROJ = np.dot(A, np.linalg.pinv(A))
+		FEAT_PROJ = np.dot(A, np.dot(np.linalg.pinv(np.dot(np.transpose(A), A)), np.transpose(A)))
+		# FEAT_PROJ = np.dot(A, np.transpose(A)) / np.dot(np.transpose(A), A)
+		# FEAT_PROJ = np.dot(A, np.linalg.pinv(A))
 		NULL_PROJ = np.ones(FEAT_PROJ.shape)-FEAT_PROJ
-		print FEAT_PROJ.shape
-		print NULL_PROJ.shape
+		# print FEAT_PROJ.shape
+		# print NULL_PROJ.shape
 		# NULL_PROJ = X-FEAT_PROJ
-		verif = np.dot(np.transpose(A), NULL_PROJ)
-		print 'Get NULL_PROJ right?', verif
+		verif = np.dot(FEAT_PROJ, NULL_PROJ)
+		# print 'Get NULL_PROJ right?', verif
 
 
-	print idx
-	return A, idx
+	# print idx
+	return A, Wa, idx
 
 
 def SVD_decomposition(X, r):

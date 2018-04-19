@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 from APT_factorization import APT_recursiveElimination, APT_random, APT_GramSchmidt
 
 
-def compare_methods(S, methods_to_compare=['SVD', 'APT_backward', 'APT_random'], miss_err=True):
+def compare_methods(S, methods_to_compare=['SVD', 'APT_backward', 'APT_random', 'APT_GramSchmidt'], miss_err=True):
 	"""
 		Compare reconstruction error of different methods applied on matrix S
 		- miss_err = True: error will be computed only on positions of missing values
@@ -37,6 +37,9 @@ def compare_methods(S, methods_to_compare=['SVD', 'APT_backward', 'APT_random'],
 				elif method == 'APT_random':
 					A_random, _, T_random, _, P_random = APT_random(S, m=r_, d=S.shape[0]) 
 					S_reconstruct = np.dot(A_random, np.dot(P_random,T_random))
+				elif method == 'APT_GramSchmidt':
+					A, Wa, idx = APT_GramSchmidt(S, m=r_)
+					S_reconstruct = np.dot(A, Wa)
 				if miss_err:
 					rmse = math.sqrt(((S[missing_position]-S_reconstruct[missing_position])**2).sum()/S[missing_position].size)
 				else:
@@ -50,8 +53,9 @@ def compare_methods(S, methods_to_compare=['SVD', 'APT_backward', 'APT_random'],
 		# plt.plot(range(1,S.shape[1]+1), RMSE_dict[method], '.-', label=method)
 		# print method, RMSE_dict[method]
 		# print method, errorbar_dict[method]
-		plt.errorbar(range(1,S.shape[1]+1), RMSE_dict[method], yerr=errorbar_dict[method], label=method, linestyle='-', marker='o', markersize=3, barsabove=True)
-		
+		plt.errorbar(range(1,S.shape[1]+1), RMSE_dict[method], yerr=errorbar_dict[method], label=method, linestyle='-', marker='o', markersize=6, barsabove=True)
+	plt.xticks(range(1,S.shape[1]+1))
+	plt.xlim(1,S.shape[1]+1)	
 	plt.legend()
 	plt.show()
 	return RMSE_dict, errorbar_dict
