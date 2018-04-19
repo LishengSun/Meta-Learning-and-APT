@@ -3,10 +3,10 @@ import math
 
 
 import matplotlib.pyplot as plt
-from APT_factorization import APT_recursiveElimination, APT_random, APT_GramSchmidt
+from APT_factorization import APT_recursiveElimination, APT_random, APT_GramSchmidt, APT_SVDbasedForward
 
 
-def compare_methods(S, methods_to_compare=['SVD', 'APT_backward', 'APT_random', 'APT_GramSchmidt'], miss_err=True):
+def compare_methods(S, methods_to_compare=['SVD', 'APT_backward', 'APT_random', 'APT_GramSchmidt', 'APT_SVDbasedForward'], miss_err=True):
 	"""
 		Compare reconstruction error of different methods applied on matrix S
 		- miss_err = True: error will be computed only on positions of missing values
@@ -25,7 +25,7 @@ def compare_methods(S, methods_to_compare=['SVD', 'APT_backward', 'APT_random', 
 		errorbar_all_run = []
 		for r_ in range(1,S.shape[1]+1):
 			err_run = []
-			for run in range(100):
+			for run in range(5):
 				if method == 'SVD':
 					u, s, vh = np.linalg.svd(S, full_matrices=False)
 					s_ = list(s[:r_])+[0]*(len(s)-r_)
@@ -39,6 +39,9 @@ def compare_methods(S, methods_to_compare=['SVD', 'APT_backward', 'APT_random', 
 					S_reconstruct = np.dot(A_random, np.dot(P_random,T_random))
 				elif method == 'APT_GramSchmidt':
 					A, Wa, idx = APT_GramSchmidt(S, m=r_)
+					S_reconstruct = np.dot(A, Wa)
+				elif method == 'APT_SVDbasedForward':
+					A, Wa, idx = APT_SVDbasedForward(S, m=r_)
 					S_reconstruct = np.dot(A, Wa)
 				if miss_err:
 					rmse = math.sqrt(((S[missing_position]-S_reconstruct[missing_position])**2).sum()/S[missing_position].size)
@@ -55,7 +58,7 @@ def compare_methods(S, methods_to_compare=['SVD', 'APT_backward', 'APT_random', 
 		# print method, errorbar_dict[method]
 		plt.errorbar(range(1,S.shape[1]+1), RMSE_dict[method], yerr=errorbar_dict[method], label=method, linestyle='-', marker='o', markersize=6, barsabove=True)
 	plt.xticks(range(1,S.shape[1]+1))
-	plt.xlim(1,S.shape[1]+1)	
+	plt.xlim(0,S.shape[1]+1)	
 	plt.legend()
 	plt.show()
 	return RMSE_dict, errorbar_dict

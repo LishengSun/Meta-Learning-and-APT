@@ -130,7 +130,6 @@ def APT_GramSchmidt(S, m=5):
 	3) Select 'x2' best correlated with other x in N('x1') as second basis
 	Repeat until number of basis is m
 	"""
-	# print 'Gram-Schmidt...'
 	p, n = S.shape
 
 	idx = [] # features already selected
@@ -148,33 +147,61 @@ def APT_GramSchmidt(S, m=5):
 		SS = SS - np.diag(np.diag(SS)) # substract diagonal, no consider self correlation (corr(m1, m1))
 		Stot = abs(X)
 		w, i = np.max(np.mean(np.abs(SS), axis=1)), np.argmax(np.mean(np.abs(SS), axis=1)) # most correlated
-		# print "w=",w
-		# print "i=",i
 		idx.append(idx_[i])
-		# print idx
 		idx_.remove(idx_[i])
-		# print idx_
 
 		# compute the projector on the space of selected features
 		# and the projector onto the null space
-		# print S.shape
-		# print idx
 		A = S[:, idx]
 		Wa = np.dot(np.linalg.pinv(A), S)
 		
 		FEAT_PROJ = np.dot(A, np.dot(np.linalg.pinv(np.dot(np.transpose(A), A)), np.transpose(A)))
-		# FEAT_PROJ = np.dot(A, np.transpose(A)) / np.dot(np.transpose(A), A)
-		# FEAT_PROJ = np.dot(A, np.linalg.pinv(A))
 		NULL_PROJ = np.ones(FEAT_PROJ.shape)-FEAT_PROJ
-		# print FEAT_PROJ.shape
-		# print NULL_PROJ.shape
-		# NULL_PROJ = X-FEAT_PROJ
 		verif = np.dot(FEAT_PROJ, NULL_PROJ)
 		# print 'Get NULL_PROJ right?', verif
-
-
-	# print idx
 	return A, Wa, idx
+
+
+def APT_SVDbasedForward(S, m=5):
+	"""
+	Use Gram-Schmidt process to select features most correlated to others
+	Based on Isabelle's MATLAB code
+	1) Select 'x1' best correlated with other x as first basis in initialized null space
+	2) Project remaining x to N('x1') (null space of x1)
+	3) Select 'x2' best correlated with other x in N('x1') as second basis
+	Repeat until number of basis is m
+	"""
+	p, n = S.shape
+
+	idx = [] # features already selected
+	idx_ = range(n) # features not selected yet
+	X = np.copy(S)
+	NULL_PROJ = np.eye(p) #shape p,p
+
+	while len(idx) < m:
+		X = S[:, idx_]
+		X = np.dot(NULL_PROJ, X) # project X to null space of A
+		X = standardize(X)
+
+		# compute the feature most correlated to all other features (in null space of A)
+		U,s,V = np.linalg.svd(X, full_matrices=False)
+		Dist = np.dot(np.transpose(X), U[:, 0]) # compute distance between 1e component of U and all remaining features
+		minDist, i = np.min(Dist), np.argmin(Dist)
+
+		idx.append(idx_[i])
+		idx_.remove(idx_[i])
+
+		# compute the projector on the space of selected features
+		# and the projector onto the null space
+		A = S[:, idx]
+		Wa = np.dot(np.linalg.pinv(A), S)
+		
+		FEAT_PROJ = np.dot(A, np.dot(np.linalg.pinv(np.dot(np.transpose(A), A)), np.transpose(A)))
+		NULL_PROJ = np.ones(FEAT_PROJ.shape)-FEAT_PROJ
+		verif = np.dot(FEAT_PROJ, NULL_PROJ)
+		# print 'Get NULL_PROJ right?', verif
+	return A, Wa, idx
+
 
 
 def SVD_decomposition(X, r):
