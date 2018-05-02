@@ -21,16 +21,32 @@ import matplotlib.pyplot as plt
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import accuracy_score
+from sklearn.decomposition import PCA
+from data_statistics import *
+from SVD_complete_missingValues import SVD_complete_missingValues
+
 
 def standardize(X):
 	"""
 	column wise normalization, based on Isabelle's Matlab code
 	"""
 	XX = np.copy(X) # no destroy X
-	mu = np.mean(XX, axis=1) # mean of row
-	std = np.std(XX, axis=1)
-	for r in range(XX.shape[0]):
-		XX[r,:] = (XX[r,:]-mu[r])/std[r]
+	for iteration in range(5):
+		mu_row = np.nanmean(XX, axis=1) # mean of row
+		std_row = np.nanstd(XX, axis=1)
+		for r in range(XX.shape[0]):
+			# if sparsity(mu_row)==0 and sparsity(std_row)==0:
+			XX[r,:] = (XX[r,:]-mu_row[r])/std_row[r]
+			# else:
+			# 	pass
+		mu_col = np.nanmean(XX, axis=0) # mean of col
+		std_col = np.nanstd(XX, axis=0)
+		for c in range(XX.shape[1]):
+			# if sparsity(mu_col) == 0 and sparsity(std_col)==0:
+			XX[:,c] = (XX[:,c]-mu_col[c])/std_col[c]
+			# else:
+			# 	pass
+		
 	return XX
 
 
@@ -78,7 +94,6 @@ def APT_recursiveElimination(X_orig, m=5, d=5, l=1e-14):
 	l = lambda, regularization parameter
 	"""
 	X = np.copy(X_orig) # create copy of X_orig so this last will stay untouched
-
 	p, n = X.shape # 1row = 1dataset, 1col = 1 model
 	m = min(m, n)
 	d = min(d, p)
@@ -98,12 +113,22 @@ def APT_recursiveElimination(X_orig, m=5, d=5, l=1e-14):
 	m_idx = range(n)
 	while len(m_idx) > m:
 		M = X[:, m_idx]
+		M = standardize(M)
+		# try:
+		# print 'sparsity of M:', sparsity(M)
+		if sparsity(M) != 0:
+			M, _, _, _ = SVD_complete_missingValues(M)
+			# M_median = np.nanmedian(M)
+			# missing_positions = np.where(np.isnan(M))
+			# M[missing_positions] = M_median
 		Wm = np.dot(np.linalg.pinv(M), X)
+		# except LinAlgError:
+		# 	exit
 		wi, i = np.min(np.max(np.abs(Wm), axis=1)), np.argmin(np.max(np.abs(Wm), axis=1))
 		m_idx.remove(m_idx[i])
 	M = X[:, m_idx]
 	
-	Wm = np.dot(np.linalg.pinv(M), X)
+	Wm = np.dot(np.linalg.pinv(M), X_orig)
 	#Recursive dataset elimination until d models are left
 	d_idx = range(p)
 	while len(d_idx) > d:
@@ -138,15 +163,18 @@ def APT_GramSchmidt(S, m=5):
 	NULL_PROJ = np.eye(p) #shape p,p
 
 	while len(idx) < m:
-		X = S[:, idx_]
+		X = S[:, idx_]		
 		X = np.dot(NULL_PROJ, X) # project X to null space of A
 		X = standardize(X)
 
 		# compute the feature most correlated to all other features (in null space of A)
-		SS = np.dot(np.transpose(X), X)
+		SS = np.dot(np.transpose(X), X) 
+		
+		# SS = np.corrcoef(np.transpose(X))
 		SS = SS - np.diag(np.diag(SS)) # substract diagonal, no consider self correlation (corr(m1, m1))
-		Stot = abs(X)
-		w, i = np.max(np.mean(np.abs(SS), axis=1)), np.argmax(np.mean(np.abs(SS), axis=1)) # most correlated
+		Stot = abs(SS)
+		w, i = np.min(np.mean(np.abs(Stot), axis=1)), np.argmin(np.mean(np.abs(Stot), axis=1))
+		# w, i = 0,0
 		idx.append(idx_[i])
 		idx_.remove(idx_[i])
 
@@ -155,21 +183,17 @@ def APT_GramSchmidt(S, m=5):
 		A = S[:, idx]
 		Wa = np.dot(np.linalg.pinv(A), S)
 		
-		FEAT_PROJ = np.dot(A, np.dot(np.linalg.pinv(np.dot(np.transpose(A), A)), np.transpose(A)))
-		NULL_PROJ = np.ones(FEAT_PROJ.shape)-FEAT_PROJ
-		verif = np.dot(FEAT_PROJ, NULL_PROJ)
+		# FEAT_PROJ = np.dot(A, np.dot(np.linalg.pinv(np.dot(np.transpose(A), A)), np.transpose(A)))
+		FEAT_PROJ = np.dot(A, np.linalg.pinv(A))
+		NULL_PROJ = np.eye(FEAT_PROJ.shape[0])-FEAT_PROJ
+		# print idx
 		# print 'Get NULL_PROJ right?', verif
 	return A, Wa, idx
 
 
 def APT_SVDbasedForward(S, m=5):
 	"""
-	Use Gram-Schmidt process to select features most correlated to others
-	Based on Isabelle's MATLAB code
-	1) Select 'x1' best correlated with other x as first basis in initialized null space
-	2) Project remaining x to N('x1') (null space of x1)
-	3) Select 'x2' best correlated with other x in N('x1') as second basis
-	Repeat until number of basis is m
+	
 	"""
 	p, n = S.shape
 
@@ -179,15 +203,29 @@ def APT_SVDbasedForward(S, m=5):
 	NULL_PROJ = np.eye(p) #shape p,p
 
 	while len(idx) < m:
+		# print 'choose from: ', idx_
 		X = S[:, idx_]
 		X = np.dot(NULL_PROJ, X) # project X to null space of A
 		X = standardize(X)
 
 		# compute the feature most correlated to all other features (in null space of A)
-		U,s,V = np.linalg.svd(X, full_matrices=False)
-		Dist = np.dot(np.transpose(X), U[:, 0]) # compute distance between 1e component of U and all remaining features
-		minDist, i = np.min(Dist), np.argmin(Dist)
+		U,s,V = np.linalg.svd(X, full_matrices=True)
+		Proj = []
+		for col in range(X.shape[1]):
+			proj_col = np.dot(X[:,col], U[:, 0])# / (np.linalg.norm(X[:,col])*np.linalg.norm(U[:,0]))
+			Proj.append(proj_col)
 
+		# Dist = np.dot(np.transpose(X), U[:, 0]) # compute distance between 1e component of U and all remaining features
+		# minDist = min(d for d in Dist if d > 0)
+		# i = Dist.index(minDist)
+		maxProj, i = np.max(Proj), np.argmax(Proj)
+		# print 'Proj = ', Proj
+		# print 'maxProj = ', maxProj
+		# print Dist
+		# print minDist
+		# print Dist
+		# print maxDist, i
+		
 		idx.append(idx_[i])
 		idx_.remove(idx_[i])
 
@@ -196,18 +234,55 @@ def APT_SVDbasedForward(S, m=5):
 		A = S[:, idx]
 		Wa = np.dot(np.linalg.pinv(A), S)
 		
-		FEAT_PROJ = np.dot(A, np.dot(np.linalg.pinv(np.dot(np.transpose(A), A)), np.transpose(A)))
+		# FEAT_PROJ = np.dot(A, np.dot(np.linalg.pinv(np.dot(np.transpose(A), A)), np.transpose(A)))
+		FEAT_PROJ = np.dot(A, np.linalg.pinv(A))
 		NULL_PROJ = np.ones(FEAT_PROJ.shape)-FEAT_PROJ
 		verif = np.dot(FEAT_PROJ, NULL_PROJ)
+		# print "idx", idx
+		# print '======='
 		# print 'Get NULL_PROJ right?', verif
 	return A, Wa, idx
 
 
+def SVD_baseline(S, m=5):
+	U,s,V = np.linalg.svd(S, full_matrices=True)
+	# 
+	idx = []
+	for Uj in range(U.shape[1]):
+		corr_UjS = []
+		for Sj in range(S.shape[1]):
+			corr_UjSj = np.correlate(U[:,Uj], S[:,Sj])
+			corr_UjS.append(corr_UjSj[0])
+		idx.append(sorted(range(len(corr_UjS)), key=lambda k: corr_UjS[k])[0])
+
+	# idx = sorted(range(len(corr_UjS)), key=lambda k: corr_UjS[k])
+	print len(corr_UjS)
+	# while len(idx) < m:
+	# 	idx.append()
+	A = S[:, idx[:m]]
+	# print idx
+	Wa = np.dot(np.linalg.pinv(A), S)
+	return A, Wa, idx
+	# idx = []
+	# U,s,V = np.linalg.svd(S, full_matrices=True)
+
+	# for Uj in range(U.shape[1]):
+	# corr_UjS = []
+	# 	while len(idx) < m:
+	# 		for Sj in range(S.shape[1]):
+	# 			corr_UjSj = np.correlate(U[:,Uj], S[:,Sj])
+	# 			corr_UjS.append(corr_UjSj[0])
+	# 		# print np.argmax(corr_UjS)
+	# 		idx.append(np.argmax(corr_UjS))
+	# print idx, len(idx)
+	# A = S[:, idx]
+	# Wa = np.dot(np.linalg.pinv(A), S)
+	# return A, Wa, idx
 
 def SVD_decomposition(X, r):
 	"""r = reduced rank
 	"""
-	U,s,V = np.linalg.svd(X, full_matrices=False)
+	U,s,V = np.linalg.svd(X, full_matrices=True)
 	S = np.diag(s[:r+1]) # keep only first r singular values
 	U = U[:,:r+1]
 	V = V[:r+1,:]

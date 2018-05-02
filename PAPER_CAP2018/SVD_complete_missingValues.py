@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import random
-
+# from APT_factorization import standardize
 
 def SVD_complete_missingValues(M, num_iteration=500, normalization=False, plot_convergence=False):
 	"""
@@ -32,8 +32,13 @@ def SVD_complete_missingValues(M, num_iteration=500, normalization=False, plot_c
 	missing_positions = np.where(np.isnan(M))
 	ground_truth_positions = np.where(~np.isnan(M))
 
+
 	median = np.nanmedian(M)
 	M_[missing_positions] = median
+	mini = np.nanmin(M) # replace -np.inf with min
+	M[np.where(np.isneginf(M))] = mini
+	maxi = np.nanmax(M) # replace np.inf with max
+	M[np.where(np.isposinf(M))] = maxi
 	i=0
 	while i<num_iteration:
 		# print i
@@ -60,7 +65,7 @@ def SVD_complete_missingValues(M, num_iteration=500, normalization=False, plot_c
 		plt.show()
 		# plt.savefig('AutoML29datasets_reconstructionErr')
 
-	return M_, M_return, err_final, reconstruction_err, missing_positions, median
+	return M_, M_return, err_final, reconstruction_err
 	#M_ is M_return but keeping ground truth values
 
 def random_eliminate_entry(M, num_elim = 800):
@@ -104,20 +109,21 @@ def SVD_complete_fake_missing(S_miss, S_groudtruth):
 	M_[missing_positions] = median
 	U, s, V = np.linalg.svd(M_, full_matrices=False)
 	s_ = list(s[:r_])+[0]*(len(s)-r_)
-    smat_ = np.diag(s_)
-    S_SVD = np.dot(u, np.dot(smat_, vh))
-    rmse_svd = math.sqrt(((S-S_SVD)**2).sum())
+	smat_ = np.diag(s_)
+	S_SVD = np.dot(u, np.dot(smat_, vh))
+	rmse_svd = math.sqrt(((S-S_SVD)**2).sum())
 	S_dim1 = U.shape[1]
-		S_dim2 = V.shape[0]
-		S = np.zeros((S_dim1, S_dim2))
-		S[:len(s), :len(s)] = np.diag(s)
-		M_ = np.dot(np.dot(U, S), V)
+	S_dim2 = V.shape[0]
+	S = np.zeros((S_dim1, S_dim2))
+	S[:len(s), :len(s)] = np.diag(s)
+	M_ = np.dot(np.dot(U, S), V)
 
-		convergent, rec_err = close(M, M_, ground_truth_positions)
-		reconstruction_err.append(rec_err)
-		# print 'Converged? ', convergent
-		
-		M_[ground_truth_positions] = M[ground_truth_positions]
+	convergent, rec_err = close(M, M_, ground_truth_positions)
+	reconstruction_err.append(rec_err)
+	# print 'Converged? ', convergent
+	
+	M_[ground_truth_positions] = M[ground_truth_positions]
+	return M_
 	
 
 

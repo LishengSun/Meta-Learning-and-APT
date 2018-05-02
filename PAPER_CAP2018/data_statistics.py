@@ -27,6 +27,29 @@ def rank(X):
 		# print "Matrix contains NaN"
 		raise ValueError("Matrix contains NaN")
 
+def ave_corr_rows(X):
+	# from matplotlib import colors
+	# from matplotlib import cm
+	# from mpl_toolkits.axes_grid1 import make_axes_locatable
+
+	corr = np.corrcoef(X, rowvar=True)
+	corr = corr - np.diag(np.diag(corr))
+	corr.sum()/(X.shape[0]*X.shape[0]-X.shape[0])
+	
+	return np.nanmean(abs(corr))
+	# fig, ax = plt.subplots()
+
+	# cax = ax.imshow(corr, cm.viridis, origin='lower')#, cmap=cmap, norm=norm)
+	# fig.colorbar(cax)
+
+	# plt.show()
+def ave_corr_cols(X):
+	corr = np.corrcoef(X, rowvar=False)
+	corr = corr - np.diag(np.diag(corr))
+	corr.sum()/(X.shape[0]*X.shape[0]-X.shape[0])
+	
+	return np.nanmean(abs(corr))
+
 
 	
 	

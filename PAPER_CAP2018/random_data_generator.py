@@ -5,6 +5,7 @@ Generate matrix of rank r, based on Isabelle's code
 import numpy as np 
 import math
 import matplotlib.pyplot as plt
+plt.rcParams['figure.figsize'] = [8, 6]
 import random
 
 def random_data(p, n, r):
@@ -33,21 +34,24 @@ def add_missing_value(X, frac_missing):
 	X_miss = X_flat.reshape(X.shape)
 	return X_miss
 
-def plot_matrix_with_missing_value(X):
+def plot_matrix_with_missing_value(X, frac_missing):
 	from matplotlib import colors
 	from matplotlib import cm
 	from mpl_toolkits.axes_grid1 import make_axes_locatable
 	min_bound = np.min(X)
 	max_bound = np.max(X)
 	
+	# fig = plt.figure(figsize=(18, 16), dpi= 80, facecolor='w', edgecolor='k')
 	fig, ax = plt.subplots()
-	
-	cax = ax.imshow(X, cm.viridis)#, cmap=cmap, norm=norm)
+
+	cax = ax.imshow(X, cm.viridis, origin='lower')#, cmap=cmap, norm=norm)
 	fig.colorbar(cax)
 	
-	ax.set_xlim(0,X.shape[1])
-	ax.set_ylim(0,X.shape[0])
-	plt.title('Missing values shown in white')
+	# ax.set_xlim(0,X.shape[1]-1)
+	# ax.set_ylim(0,X.shape[0]-1)
+	# plt.xticks(range(X.shape[1]))
+	# plt.yticks(range(X.shape[0]))
+	plt.title('frac_missing = %f'%frac_missing)
 	plt.show()
 
 	
